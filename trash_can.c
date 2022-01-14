@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <limits.h>
+#include <dirent.h>
+#include <time.h>
 
 int init_trash() {
     printf("Creating files...\n");
@@ -121,9 +123,23 @@ int add_file_to_trash(char *file_name) {
     strcat(command2, cwd);
     strcat(command2, ">~/.trash/.");
     strcat(command2, file_name);
-    strcat(command2, ".path");
+    strcat(command2, ".info");
     system(command2);
+    
+    long tmp = (long)time(NULL);  
+    
+    char command3[100] = {'\0'};
+    strcat(command3, "echo ");
 
+    char str_size[(int)((ceil(log10(tmp))+1)*sizeof(char))];
+    sprintf(str_size, "%d", (int)tmp);
+
+    strcat(command3, str_size);
+    strcat(command3, ">>~/.trash/.");
+    strcat(command3, file_name);
+    strcat(command3, ".info");
+    system(command3);
+    
     return 0;
 }
 
@@ -135,7 +151,49 @@ int list_content() {
 
 int restore_all();
 
-int restore_file();
+int restore_file(char *file_name) {
+
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        perror("getcwd() error");
+        return 1;
+    }
+
+    char path[100] = {'\0'};
+
+    char path_file_name[100] = {'\0'};
+    strcat(path_file_name, "/home/johnhenderson/.trash/.");
+    strcat(path_file_name, file_name);
+    strcat(path_file_name, ".path");
+
+    FILE *path_file = fopen(path_file_name, "r");
+    if (path_file == NULL) {
+        perror(path_file_name);  // prints why the open failed
+        return 1;
+    }
+    
+    int c;
+    int i = 0;
+    while((c = fgetc(path_file)) != EOF) {
+        path[i] = c;
+        i++;
+    }
+
+    char command[100] = {'\0'};
+    strcat(command, "mv /home/johnhenderson/.trash/");
+    strcat(command, file_name);
+    strcat(command, " ");
+    strcat(command, path);
+    system(command);
+    
+    char command2[100] = {'\0'};
+    strcat(command2, "rm /home/johnhenderson/.trash/.");
+    strcat(command2, file_name);
+    strcat(command2, ".path");
+    system(command2);
+
+    return 0;
+}
 
 int restore_directory();
 
@@ -143,4 +201,41 @@ int clear_trash() {
     return system("rm -rf ~/.trash/*");
 }
 
-int auto_clear();
+int auto_clear() {
+    
+    // Block of code calculates the size of the trash currently stored
+    // int size = 0;
+    
+    int counter = 0;
+
+    DIR *dirp = opendir("/home/johnhenderson/.trash/");
+    struct dirent *de;
+    
+    while ((de = readdir(dirp)) != NULL) {
+        
+        if (!(strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)) {
+        
+            //char file_name[100] = {'\0'};
+            //strcat(file_name, "/home/johnhenderson/.trash/");
+            //strcat(file_name, de->d_name);
+            
+            //FILE *file = fopen(file_name, "r");
+            //if (file == NULL) {
+            //    perror(file_name);  // prints why the open failed
+            //    return 1;
+            //}   
+        
+            //fseek(file, 0L, SEEK_END);
+            //size += ftell(file);
+            counter++;
+        }
+    }       
+    counter = counter/2;
+    
+    if (counter > 4) {
+        printf("Taking out the oldest item /n");
+        
+    }
+
+    return 0;
+}
