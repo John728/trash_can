@@ -265,6 +265,19 @@ int auto_clear() {
         printf("Taking out the oldest item \n");
         char command[100] = {'\0'};
         strcat(command, "rm -rf ~/.trash/");
+        char command2[100] = {'\0'};
+        
+        strcat(command2, "rm /home/johnhenderson/.trash/.");
+        strcat(command2, oldest_file_name);
+        strcat(command2, ".path");
+        system(command2);
+        
+        char command3[100] = {'\0'};
+        strcat(command3, "rm /home/johnhenderson/.trash/.");
+        strcat(command3, oldest_file_name);
+        strcat(command3, ".time");
+        system(command3);
+
         strcat(command, oldest_file_name);
         system(command);
         auto_clear();
