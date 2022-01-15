@@ -123,11 +123,12 @@ int add_file_to_trash(char *file_name) {
     strcat(command2, cwd);
     strcat(command2, ">~/.trash/.");
     strcat(command2, file_name);
-    strcat(command2, ".info");
+    strcat(command2, ".path");
     system(command2);
     
+    // Concats the timestamp into the info file
     long tmp = (long)time(NULL);  
-    
+       
     char command3[100] = {'\0'};
     strcat(command3, "echo ");
 
@@ -135,9 +136,9 @@ int add_file_to_trash(char *file_name) {
     sprintf(str_size, "%d", (int)tmp);
 
     strcat(command3, str_size);
-    strcat(command3, ">>~/.trash/.");
+    strcat(command3, ">~/.trash/.");
     strcat(command3, file_name);
-    strcat(command3, ".info");
+    strcat(command3, ".time");
     system(command3);
     
     return 0;
@@ -191,6 +192,12 @@ int restore_file(char *file_name) {
     strcat(command2, file_name);
     strcat(command2, ".path");
     system(command2);
+    
+    char command3[100] = {'\0'};
+    strcat(command3, "rm /home/johnhenderson/.trash/.");
+    strcat(command3, file_name);
+    strcat(command3, ".time");
+    system(command3);
 
     return 0;
 }
@@ -210,32 +217,60 @@ int auto_clear() {
 
     DIR *dirp = opendir("/home/johnhenderson/.trash/");
     struct dirent *de;
-    
+    int timestamp = 0;
+    char oldest_file_name[100] = {'\0'};
     while ((de = readdir(dirp)) != NULL) {
         
         if (!(strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)) {
         
-            //char file_name[100] = {'\0'};
-            //strcat(file_name, "/home/johnhenderson/.trash/");
-            //strcat(file_name, de->d_name);
-            
-            //FILE *file = fopen(file_name, "r");
-            //if (file == NULL) {
-            //    perror(file_name);  // prints why the open failed
-            //    return 1;
-            //}   
-        
-            //fseek(file, 0L, SEEK_END);
-            //size += ftell(file);
+            if (strstr(de->d_name, ".time")) {
+
+                char file_name[100] = {'\0'};
+                strcat(file_name, "/home/johnhenderson/.trash/");
+                strcat(file_name, de->d_name);
+
+                FILE* fp = fopen(file_name, "r");
+                if(!fp) {
+                    perror("File opening failed");
+                    return EXIT_FAILURE;
+                }
+                
+                char timestamp_string[100] = {'\0'};
+                int i = 0;
+                int c; // note: int, not char, required to handle EOF
+                while ((c = fgetc(fp)) != EOF) { // standard C I/O file reading loop
+                    timestamp_string[i] = c;
+                    i++;
+                }
+                int tmp_timestamp = atoi(timestamp_string);           
+                
+                if (counter == 0) {
+                    timestamp = tmp_timestamp;
+                    strcpy(oldest_file_name, de->d_name);
+                } else {
+                    if (tmp_timestamp < timestamp) {
+                        timestamp = tmp_timestamp;
+                        strcpy(oldest_file_name, de->d_name);
+                    }
+                }
+            }    
             counter++;
         }
     }       
-    counter = counter/2;
+    counter = counter/3;
+    
+    printf("There are %d files\n", counter);
     
     if (counter > 4) {
-        printf("Taking out the oldest item /n");
-        
+        printf("Taking out the oldest item \n");
+        char command[100] = {'\0'};
+        strcat(command, "rm -rf ~/.trash/");
+        strcat(command, oldest_file_name);
+        system(command);
+        auto_clear();
     }
 
     return 0;
 }
+
+char *find_oldest_file();

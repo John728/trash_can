@@ -4,6 +4,8 @@
 
 int main(int argc, char *argv[]) {
     //init_trash();
+    auto_clear();
+    return 1;
     if (strcmp(argv[1], "-l") == 0) {
         list_content();
     } else {
