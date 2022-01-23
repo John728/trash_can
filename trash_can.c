@@ -217,8 +217,10 @@ int auto_clear() {
 
     DIR *dirp = opendir("/home/johnhenderson/.trash/");
     struct dirent *de;
+ 
     int timestamp = 0;
     char oldest_file_name[100] = {'\0'};
+    
     while ((de = readdir(dirp)) != NULL) {
         
         if (!(strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)) {
@@ -244,13 +246,26 @@ int auto_clear() {
                 }
                 int tmp_timestamp = atoi(timestamp_string);           
                 
-                if (counter == 0) {
+                if (timestamp == 0) {
                     timestamp = tmp_timestamp;
                     strcpy(oldest_file_name, de->d_name);
+                     // Converts .file.time to just file
+                    int i = 0;
+                    for (i = 0; i < strlen(oldest_file_name) - 5; i++) {
+                            oldest_file_name[i] = oldest_file_name[i + 1];
+                    }
+                    oldest_file_name[i - 1] = '\0';
                 } else {
                     if (tmp_timestamp < timestamp) {
                         timestamp = tmp_timestamp;
                         strcpy(oldest_file_name, de->d_name);
+                        
+                        // Converts .file.time to just file
+                        int i = 0;
+                        for (i = 0; i < strlen(oldest_file_name) - 5; i++) {
+                                oldest_file_name[i] = oldest_file_name[i + 1];
+                        }
+                        oldest_file_name[i - 1] = '\0';
                     }
                 }
             }    
@@ -259,12 +274,12 @@ int auto_clear() {
     }       
     counter = counter/3;
     
-    printf("There are %d files\n", counter);
-    
+
     if (counter > 4) {
-        printf("Taking out the oldest item \n");
+        printf("Removing %s\n", oldest_file_name);
         char command[100] = {'\0'};
         strcat(command, "rm -rf ~/.trash/");
+        
         char command2[100] = {'\0'};
         
         strcat(command2, "rm /home/johnhenderson/.trash/.");
