@@ -7,8 +7,12 @@ int main(int argc, char *argv[]) {
     // Restore file
     //---
     if (strcmp(argv[1], "-r") == 0) {
-        printf("restoring %s\n", argv[2]);
-        restore_file(argv[2]);
+        if (argc == 3) {
+            printf("restoring %s\n", argv[2]);
+            restore_file(argv[2]);
+        } else {
+            printf("Incorrect format, type del --help for more\n");
+        }
  
     //---
     // Restore all files
@@ -26,7 +30,12 @@ int main(int argc, char *argv[]) {
     // Remove file from trash
     //---
     } else if (strcmp(argv[1], "-c") == 0) {
-        remove_file_from_trash(argv[2]);
+        if (argc == 3) {
+            remove_file_from_trash(argv[2]);
+        } else {
+            printf("Incorrect format, type del --help for more\n");
+        }
+
     //---
     // List files
     //---

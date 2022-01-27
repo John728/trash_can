@@ -140,14 +140,23 @@ int add_file_to_trash(char *file_name) {
     if (posix_spawn(&trash_mv_pid, "/bin/mv", NULL, NULL, mv_argv, environ) != 0) {
         perror("spawn");
         exit(1);
+        printf("Error: cannot delete file\n");
+        return 1;
     }
 
     int exit_status;
     if (waitpid(trash_mv_pid, &exit_status, 0) == -1) {
         perror("waitpid");
         exit(1);
+        printf("Error\n");
+        return 1;
     }
     
+    if (exit_status != EXIT_SUCCESS) {
+        printf("There was an error\n");
+        return 1;
+    }
+
     // Create file in trash with path for restoration
     char cwd[PATH_MAX];
     if (getcwd(cwd, sizeof(cwd)) == NULL) {
@@ -264,7 +273,7 @@ int restore_file(char *file_name) {
 }
 
 int clear_trash() {
-    return system("rm -rf ~/.trash/*");
+    system("rm -rf ~/.trash/*");
     return system("rm -rf ~/.trash/.* 2> /dev/null");
 }
 
