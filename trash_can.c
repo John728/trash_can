@@ -11,6 +11,10 @@
 #include <dirent.h>
 #include <time.h>
 
+int add_file_to_trash(char *file_name);
+int restore_file(char *file_name);
+int remove_file_from_trash(char *file_name);
+
 int init_trash() {
     printf("Creating files...\n");
     
@@ -37,6 +41,10 @@ int init_trash() {
         exit(1);
     }
     
+    return 0;
+
+    // Might delete all this
+
     // Create config file for trash_can
     char path_arg2[100] = {'\0'};
     strcat(path_arg2, homedir);
@@ -57,9 +65,23 @@ int init_trash() {
         exit(1);
     }
 
+    char path3[] = "touch ~/.config/trash_can/config";
+     // Create config file for trash_can
+    pid_t cofig_touch_pid;
+    extern char **environ;
+    char *mkdir_argv3[] = {"/bin/touch", path3, NULL};
 
-    system("touch ~/.config/trash_can/config");
-    
+    if (posix_spawn(&cofig_touch_pid, "/bin/touch", NULL, NULL, mkdir_argv3, environ) != 0) {
+        perror("spawn");
+        exit(1);
+    }
+
+    // wait for spawned processes to finish
+    if (waitpid(cofig_touch_pid, &exit_status, 0) == -1) {
+        perror("waitpid");
+        exit(1);
+    }
+
     int trash_can_size = 0;
     printf("At what size should the trash be taken out? (in bytes) (recomended: 1000): ");
     scanf("%d", &trash_can_size);
@@ -104,13 +126,28 @@ int init_trash() {
 }
 
 int add_file_to_trash(char *file_name) {
-    // Move the file
-    char command[100] = {'\0'};
-    strcat(command, "mv ");
-    strcat(command, file_name);
-    strcat(command, " ~/.trash");
-    system(command);
+    
+    // Sanatize the name a bit
+    if (file_name[strlen(file_name) - 1] == '/') {
+        file_name[strlen(file_name) - 1] = '\0';
+    }
 
+    // Move the file
+    pid_t trash_mv_pid;
+    extern char **environ;
+    char *mv_argv[] = {"/bin/mv", file_name, "/home/johnhenderson/.trash/", NULL};
+
+    if (posix_spawn(&trash_mv_pid, "/bin/mv", NULL, NULL, mv_argv, environ) != 0) {
+        perror("spawn");
+        exit(1);
+    }
+
+    int exit_status;
+    if (waitpid(trash_mv_pid, &exit_status, 0) == -1) {
+        perror("waitpid");
+        exit(1);
+    }
+    
     // Create file in trash with path for restoration
     char cwd[PATH_MAX];
     if (getcwd(cwd, sizeof(cwd)) == NULL) {
@@ -140,17 +177,31 @@ int add_file_to_trash(char *file_name) {
     strcat(command3, file_name);
     strcat(command3, ".time");
     system(command3);
-    
+
     return 0;
 }
-
-int add_directory_to_trash();
 
 int list_content() {
     return system("ls ~/.trash");
 }
 
-int restore_all();
+int restore_all() {
+    int counter = 0;
+
+    DIR *dirp = opendir("/home/johnhenderson/.trash/");
+    struct dirent *de;
+ 
+    int timestamp = 0;
+    
+    while ((de = readdir(dirp)) != NULL) {
+        
+        if (!(strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0 || (de->d_name)[0] == '.')) {
+            restore_file(de->d_name);
+        }
+    }       
+    
+    return 0;
+}
 
 int restore_file(char *file_name) {
 
@@ -160,10 +211,14 @@ int restore_file(char *file_name) {
         return 1;
     }
 
+    struct passwd *pw = getpwuid(getuid());
+    const char *homedir = pw->pw_dir;
+
     char path[100] = {'\0'};
 
     char path_file_name[100] = {'\0'};
-    strcat(path_file_name, "/home/johnhenderson/.trash/.");
+    strcat(path_file_name, homedir);
+    strcat(path_file_name, "/.trash/.");
     strcat(path_file_name, file_name);
     strcat(path_file_name, ".path");
 
@@ -181,20 +236,26 @@ int restore_file(char *file_name) {
     }
 
     char command[100] = {'\0'};
-    strcat(command, "mv /home/johnhenderson/.trash/");
+    strcat(command, "mv ");
+    strcat(command, homedir);
+    strcat(command, "/.trash/");
     strcat(command, file_name);
     strcat(command, " ");
     strcat(command, path);
     system(command);
     
     char command2[100] = {'\0'};
-    strcat(command2, "rm /home/johnhenderson/.trash/.");
+    strcat(command2, "rm ");
+    strcat(command2, homedir);
+    strcat(command2, "/.trash/.");
     strcat(command2, file_name);
     strcat(command2, ".path");
     system(command2);
     
     char command3[100] = {'\0'};
-    strcat(command3, "rm /home/johnhenderson/.trash/.");
+    strcat(command3, "rm ");
+    strcat(command3, homedir);
+    strcat(command3, "/.trash/.");
     strcat(command3, file_name);
     strcat(command3, ".time");
     system(command3);
@@ -202,10 +263,9 @@ int restore_file(char *file_name) {
     return 0;
 }
 
-int restore_directory();
-
 int clear_trash() {
     return system("rm -rf ~/.trash/*");
+    return system("rm -rf ~/.trash/.* 2> /dev/null");
 }
 
 int auto_clear() {
@@ -214,13 +274,20 @@ int auto_clear() {
     // int size = 0;
     
     int counter = 0;
+ 
+    struct passwd *pw = getpwuid(getuid());
+    const char *homedir = pw->pw_dir;
+   
+    char trash_dir[100] = {'\0'};
+    strcat(trash_dir, homedir);
+    strcat(trash_dir, "/.trash/");
 
-    DIR *dirp = opendir("/home/johnhenderson/.trash/");
+    DIR *dirp = opendir(trash_dir);
     struct dirent *de;
  
     int timestamp = 0;
     char oldest_file_name[100] = {'\0'};
-    
+     
     while ((de = readdir(dirp)) != NULL) {
         
         if (!(strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)) {
@@ -276,29 +343,33 @@ int auto_clear() {
     
 
     if (counter > 4) {
-        printf("Removing %s\n", oldest_file_name);
-        char command[100] = {'\0'};
-        strcat(command, "rm -rf ~/.trash/");
-        
-        char command2[100] = {'\0'};
-        
-        strcat(command2, "rm /home/johnhenderson/.trash/.");
-        strcat(command2, oldest_file_name);
-        strcat(command2, ".path");
-        system(command2);
-        
-        char command3[100] = {'\0'};
-        strcat(command3, "rm /home/johnhenderson/.trash/.");
-        strcat(command3, oldest_file_name);
-        strcat(command3, ".time");
-        system(command3);
-
-        strcat(command, oldest_file_name);
-        system(command);
+        remove_file_from_trash(oldest_file_name);
         auto_clear();
     }
 
     return 0;
 }
 
-char *find_oldest_file();
+int remove_file_from_trash(char *file_name) {
+    printf("Removing %s\n", file_name);
+    char command[100] = {'\0'};
+    strcat(command, "rm -rf ~/.trash/");
+    
+    char command2[100] = {'\0'};
+    
+    strcat(command2, "rm /home/johnhenderson/.trash/.");
+    strcat(command2, file_name);
+    strcat(command2, ".path");
+    system(command2);
+    
+    char command3[100] = {'\0'};
+    strcat(command3, "rm /home/johnhenderson/.trash/.");
+    strcat(command3, file_name);
+    strcat(command3, ".time");
+    system(command3);
+
+    strcat(command, file_name);
+    system(command);
+
+    return 0;
+}

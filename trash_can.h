@@ -38,3 +38,6 @@ int clear_trash();
 // delete the oldest item, it any items over the specified time 
 // of the user.
 int auto_clear();
+
+
+int remove_file_from_trash(char *file_name);
