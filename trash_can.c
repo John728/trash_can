@@ -344,6 +344,7 @@ int auto_clear() {
                         oldest_file_name[i - 1] = '\0';
                     }
                 }
+                fclose(fp);
             }    
             counter++;
         }
