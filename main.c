@@ -2,7 +2,15 @@
 #include <string.h>
 #include "trash_can.h"
 
+int error_message();
+
 int main(int argc, char *argv[]) {
+ 
+    if (argc == 1) {
+        error_message();
+        return 0;
+    }
+
     //---
     // Restore file
     //---
@@ -11,7 +19,7 @@ int main(int argc, char *argv[]) {
             printf("restoring %s\n", argv[2]);
             restore_file(argv[2]);
         } else {
-            printf("Incorrect format, type del --help for more\n");
+            error_message();
         }
  
     //---
@@ -33,7 +41,7 @@ int main(int argc, char *argv[]) {
         if (argc == 3) {
             remove_file_from_trash(argv[2]);
         } else {
-            printf("Incorrect format, type del --help for more\n");
+            error_message();
         }
 
     //---
@@ -51,4 +59,9 @@ int main(int argc, char *argv[]) {
         }
         auto_clear();
     }
+}
+
+int error_message() {
+    printf("Incorrect format, type del --help for more\n");
+    return 0;
 }

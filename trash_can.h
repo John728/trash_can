@@ -1,3 +1,18 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <limits.h>
+#include <dirent.h>
+#include <time.h>
+
+#define BIN_SIZE 4
+
 // Will be run once in the program life-cycle.
 // Will create a .trash folder at ~/ and it will also create a directory
 // called trash_config in  ~/.config/ which will store settings such as 
@@ -8,7 +23,7 @@ int init_trash();
 // will move the file from the directory to the trash folder. When the file
 // is moved, it will create a <file name>.config file which will store the 
 // original path of the file incase the user needs to restore the file.
-int add_file_to_trash();
+int add_file_to_trash(char *file_name);
 
 // Same as for the add_file_to_trash, but recursivly over a whole directory.
 // Will only create one <file name>.config file.
@@ -24,7 +39,7 @@ int list_content();
 int restore_all();
 
 // Same as restore_all but with a single file
-int restore_file();
+int restore_file(char *file_name);
 
 // Same as restore_all but with a single directory
 int restore_directory();
