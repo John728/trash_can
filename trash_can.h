@@ -11,7 +11,7 @@
 #include <dirent.h>
 #include <time.h>
 
-#define BIN_SIZE 4
+#define BIN_SIZE 100
 
 // Will be run once in the program life-cycle.
 // Will create a .trash folder at ~/ and it will also create a directory

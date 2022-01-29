@@ -15,11 +15,9 @@ int main(int argc, char *argv[]) {
     // Restore file
     //---
     if (strcmp(argv[1], "-r") == 0) {
-        if (argc == 3) {
-            printf("restoring %s\n", argv[2]);
-            restore_file(argv[2]);
-        } else {
-            error_message();
+        for (int i = 2; i < argc ; i++) {
+            printf("restoring %s\n", argv[i]);
+            restore_file(argv[i]);
         }
  
     //---

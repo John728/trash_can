@@ -1,21 +1,19 @@
 #include "trash_can.h"
+#include <linux/limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 //char *get_homedir_path();
 int remove_file(char *path);
 int remove_dot_files(char *file_name);
+char *get_path_to_trash();
 
 int init_trash() {
     printf("Creating files...\n");
     
-    struct passwd *pw = getpwuid(getuid());
-    const char *homedir = pw->pw_dir;
-    
     // Creates /.trash folder
-    char trash_path_arg[100] = {'\0'};
-    strcat(trash_path_arg, homedir);
-    strcat(trash_path_arg, "/.trash");
+    char *trash_path_arg = get_path_to_trash();
     
     pid_t trash_mkdir_pid;
     extern char **environ;
@@ -25,6 +23,7 @@ int init_trash() {
         perror("spawn");
         exit(1);
     }
+    free(trash_path_arg);
 
     int exit_status;
     if (waitpid(trash_mkdir_pid, &exit_status, 0) == -1) {
@@ -38,7 +37,7 @@ int init_trash() {
 
     // Create config file for trash_can
     char path_arg2[100] = {'\0'};
-    strcat(path_arg2, homedir);
+    //strcat(path_arg2, homedir);
     strcat(path_arg2, "/.config/trash_can");
     
     pid_t config_mkdir_pid;
@@ -82,7 +81,7 @@ int init_trash() {
     scanf("%d", &trash_can_length);
 
     char open_path[100] = {'\0'};
-    strcat(open_path, homedir);
+    //strcat(open_path, homedir);
     strcat(open_path, "/.config/trash_can/config");
 
     FILE *config_file = fopen(open_path, "w");
@@ -126,28 +125,30 @@ int add_file_to_trash(char *file_name) {
     // Move the file
     pid_t trash_mv_pid;
     extern char **environ;
-    char *mv_argv[] = {"/bin/mv", file_name, "/home/johnhenderson/.trash/", NULL};
+
+    char *path = get_path_to_trash();
+    char *mv_argv[] = {"/bin/mv", file_name, path, NULL};
 
     if (posix_spawn(&trash_mv_pid, "/bin/mv", NULL, NULL, mv_argv, environ) != 0) {
-        perror("spawn");
+        perror("posix_spawn");
+        printf("Error: cannot delete file or file does not exist\n");
         exit(1);
-        printf("Error: cannot delete file\n");
         return 1;
     }
+    free(path);
 
     int exit_status;
     if (waitpid(trash_mv_pid, &exit_status, 0) == -1) {
         perror("waitpid");
         exit(1);
-        printf("Error\n");
+        printf("Error: issue with waitpid\n");
         return 1;
     }
     
     if (exit_status != EXIT_SUCCESS) {
-        printf("There was an error\n");
         return 1;
     }
-
+    
     // Create file in trash with path for restoration
     char cwd[PATH_MAX];
     if (getcwd(cwd, sizeof(cwd)) == NULL) {
@@ -187,8 +188,14 @@ int list_content() {
 
 int restore_all() {
     int counter = 0;
+    
+    // Gets path to trash
+    struct passwd *pw = getpwuid(getuid());
+    const char *homedir = pw->pw_dir;
+    char path[strlen(homedir) + 9];
+    snprintf(path, sizeof(path), "%s%s%s", homedir, "/.trash/", "\0");
 
-    DIR *dirp = opendir("/home/johnhenderson/.trash/");
+    DIR *dirp = opendir(path);
     struct dirent *de;
  
     // Loop through all files in the .trash file and restore all that arent dot directories
@@ -265,9 +272,7 @@ int auto_clear() {
     struct passwd *pw = getpwuid(getuid());
     const char *homedir = pw->pw_dir;
    
-    char trash_dir[100] = {'\0'};
-    strcat(trash_dir, homedir);
-    strcat(trash_dir, "/.trash/");
+    char *trash_dir = get_path_to_trash();
 
     DIR *dirp = opendir(trash_dir);
     struct dirent *de;
@@ -348,6 +353,8 @@ int auto_clear() {
 
 int remove_file_from_trash(char *file_name) {
     
+    printf("Removing %s\n", file_name);
+
     remove_file(file_name);   
     remove_dot_files(file_name);
 
@@ -358,12 +365,12 @@ int remove_dot_files(char *file_name) {
 
     // remove file_name.path
     char path_file_name[sizeof(file_name) + 6];
-    snprintf(path_file_name, sizeof(path_file_name), "%s%s", file_name, ".path");
+    snprintf(path_file_name, sizeof(path_file_name), "%s%s%s", ".", file_name, ".path");
     remove_file(path_file_name);
 
     // remove file_name.time
     char time_file_name[sizeof(file_name) + 6];
-    snprintf(time_file_name, sizeof(time_file_name), "%s%s", file_name, ".time");
+    snprintf(time_file_name, sizeof(time_file_name), "%s%s%s", ".", file_name, ".time");
     remove_file(time_file_name);
 
     return 0;
@@ -371,12 +378,9 @@ int remove_dot_files(char *file_name) {
 
 int remove_file(char *file_name) {
     
-    struct passwd *pw = getpwuid(getuid());
-    const char *homedir = pw->pw_dir;
-    
     // +9 for the /.trash and \0
-    char path[strlen(homedir) + strlen(file_name) + 9];
-    snprintf(path, sizeof(path), "%s%s%s", homedir, "/.trash/", file_name);
+    char *path = get_path_to_trash();
+    snprintf(path, sizeof(path), "%s", file_name);
     
     // process to remove file from trash
     pid_t remove_file_pid;
@@ -400,4 +404,14 @@ int remove_file(char *file_name) {
     }
     
     return 0;
+}
+
+char *get_path_to_trash() {
+    // Gets path to trash
+    struct passwd *pw = getpwuid(getuid());
+    const char *homedir = pw->pw_dir;
+    char *path = malloc(strlen(homedir) + 50);
+    snprintf(path, strlen(homedir) + 50, "%s%s%s", homedir, "/.trash/", "\0");
+
+    return path;
 }
